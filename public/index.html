@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мониторинг цен конкурентов — Soldpol</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f8f9fa;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    button {
+      padding: 12px 24px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #218838;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background: #007bff;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    .last-update {
+      color: #666;
+      font-size: 0.95em;
+      margin-top: 10px;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Мониторинг цен конкурентов (Soldpol)</h1>
+  
+  <button onclick="loadPrices()">Обновить цены</button>
+  
+  <p class="last-update" id="update-time">Нажмите кнопку для загрузки цен...</p>
+
+  <table id="prices-table">
+    <thead>
+      <tr>
+        <th>Конкурент</th>
+        <th>Товар</th>
+        <th>Цена</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function loadPrices() {
+      const tbody = document.querySelector('#prices-table tbody');
+      const updateTime = document.getElementById('update-time');
+
+      if (!tbody) {
+        alert("Ошибка: Таблица не найдена!");
+        return;
+      }
+
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="3" style="text-align:center; padding:30px;">
+            Загрузка данных...
+          </td>
+        </tr>`;
+
+      try {
+        const res = await fetch('/api/prices');
+        
+        if (!res.ok) {
+          throw new Error('Ошибка сервера: ' + res.status);
+        }
+        
+        const data = await res.json();
+
+        tbody.innerHTML = ''; // очищаем таблицу
+
+        if (!data.total || data.total.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="3" style="text-align:center; color:orange; padding:30px;">
+                Товары не найдены.<br>
+                Возможно, идёт первый парсинг (это может занять 20-40 секунд).
+              </td>
+            </tr>`;
+          return;
+        }
+
+        data.total.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${item.competitor}</strong></td>
+            <td>${item.name}</td>
+            <td style="font-weight:bold; color:#28a745;">${item.price}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // Обновляем время
+        if (updateTime) {
+          updateTime.textContent = 
+            `Последнее обновление: ${new Date(data.lastUpdate || Date.now()).toLocaleString('ru-RU')}`;
+        }
+
+      } catch (err) {
+        console.error("Ошибка:", err);
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="3" style="text-align:center; color:red; padding:30px;">
+              Ошибка загрузки данных:<br>
+              ${err.message}<br><br>
+              Откройте консоль браузера (F12) для подробностей
+            </td>
+          </tr>`;
+      }
+    }
+
+    // Автоматическая загрузка при открытии страницы
+    window.onload = loadPrices;
+
+    // Автообновление каждые 10 минут
+    setInterval(loadPrices, 10 * 60 * 1000);
+  </script>
+</body>
+</html>
